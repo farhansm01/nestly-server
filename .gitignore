@@ -7,3 +7,8 @@ build/
 .vercel
 *.log
 .DS_Store
+
+# Documentation and agent rules
+AGENTS.md
+TASKS.md
+info.md
