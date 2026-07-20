@@ -304,3 +304,142 @@ Ensure `nestly-server` allows requests from the frontend client origin (`http://
 
 - **Allowed Headers:** `Content-Type`, `Authorization`
 - **Credentials:** `credentials: true` (for cookie session handling)
+
+---
+
+## 7. Complete Backend Implementation Reference (For Frontend Developer & AI)
+
+All backend endpoints specified above have been fully implemented in `nestly-server` and pushed to the GitHub repository (`https://github.com/farhansm01/nestly-server`).
+
+### 🔑 Authentication & Headers Policy
+- **User Requests**: Pass standard BetterAuth session cookies or `Authorization: Bearer <jwt_token>`.
+- **Server-Side / Bypass Requests**: Pass header `INTERNAL_API_SECRET: resellhub_internal_secret_2026` (or `x-internal-secret`). Optionally supply `x-user-id`, `x-user-name`, and `x-user-email` to act on behalf of a specific user.
+
+---
+
+### 🏡 A. Property Listings API (`/api/properties`)
+
+#### 1. `GET /api/properties`
+Fetch all active properties with filters, search, sorting, and pagination.
+- **Query Params**: `search`, `type` (`apartment`|`villa`|`penthouse`|`suburban`), `minPrice`, `maxPrice`, `beds`, `sort` (`newest`|`price-asc`|`price-desc`|`rating`), `page` (default `1`), `limit` (default `12`).
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+        "title": "Skyline Luxury Penthouse",
+        "type": "penthouse",
+        "price": 2450000,
+        "formattedPrice": "$2,450,000",
+        "location": "742 Evergreen Terrace, San Francisco, CA",
+        "city": "San Francisco",
+        "shortDesc": "Modern skyline views...",
+        "fullDesc": "Detailed multi-paragraph description...",
+        "beds": 3,
+        "baths": 3,
+        "sqft": "2,850 sqft",
+        "yearBuilt": "2024",
+        "image": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750",
+        "gallery": ["https://images.unsplash.com/photo-1512917774080-9991f1c4c750", "https://images.unsplash.com/photo-1613977257363-707ba9348227"],
+        "images": ["https://images.unsplash.com/photo-1512917774080-9991f1c4c750", "https://images.unsplash.com/photo-1613977257363-707ba9348227"],
+        "amenities": ["Private Swimming Pool", "24/7 Security"],
+        "sellerId": "user_123",
+        "sellerName": "Farhan Sadiq",
+        "status": "Active",
+        "views": 482,
+        "rating": 4.9,
+        "createdAt": "2026-07-19T10:00:00.000Z"
+      }
+    ],
+    "pagination": { "total": 120, "page": 1, "limit": 12, "totalPages": 10 }
+  }
+  ```
+
+#### 2. `GET /api/properties/:id`
+Fetch single property details by ID (automatically increments `views`).
+
+#### 3. `GET /api/properties/user/my` (Protected)
+Fetch properties created by the currently logged-in user or seller.
+
+#### 4. `POST /api/properties` (Protected)
+Create a property listing. Supports multiple images.
+- **Payload (`application/json`)**:
+  ```json
+  {
+    "title": "Emerald Bay Villa",
+    "type": "villa",
+    "price": 4800000,
+    "location": "Malibu Beach, CA",
+    "shortDesc": "Oceanfront villa with private beach path.",
+    "fullDesc": "Expansive coastal estate featuring open-concept living...",
+    "beds": 5,
+    "baths": 4.5,
+    "sqft": "4,500 sqft",
+    "yearBuilt": "2023",
+    "image": "https://images.unsplash.com/photo-1613977257363-707ba9348227",
+    "images": [
+      "https://images.unsplash.com/photo-1613977257363-707ba9348227",
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750"
+    ],
+    "amenities": ["Private Swimming Pool", "Panoramic Ocean View"]
+  }
+  ```
+- **Note on Multi-Image Uploads**: You can send multiple image URLs via `images` (array) or `gallery` (array) or `image` (string). The backend automatically sets the primary cover as `image` and synchronizes the complete list of URLs in both `gallery` and `images` fields.
+
+#### 5. `PUT /api/properties/:id` (Protected, Owner/Admin)
+Update listing details or image lists.
+
+#### 6. `DELETE /api/properties/:id` (Protected, Owner/Admin)
+Delete a property listing.
+
+---
+
+### 📩 B. Inquiries & Tour Requests API (`/api/inquiries`)
+
+#### 1. `POST /api/inquiries`
+Submit a tour request or buyer inquiry.
+- **Payload**:
+  ```json
+  {
+    "propertyId": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "propertyTitle": "Skyline Luxury Penthouse",
+    "name": "Jane Buyer",
+    "email": "jane@example.com",
+    "phone": "+1 (555) 987-6543",
+    "preferredDate": "2026-07-25",
+    "message": "I would like to schedule a private tour this Saturday."
+  }
+  ```
+
+#### 2. `GET /api/inquiries/my` (Protected)
+Fetch inquiries received by a seller or submitted by a buyer.
+
+---
+
+### ❤️ C. Favorites / Saved Homes API (`/api/favorites`)
+
+- `GET /api/favorites` (Protected): List saved property items for the logged-in buyer.
+- `POST /api/favorites/:propertyId` (Protected): Add property to buyer's saved shortlist.
+- `DELETE /api/favorites/:propertyId` (Protected): Remove property from saved shortlist.
+
+---
+
+### 🤖 D. Gemini AI Engine API (`/api/ai`)
+
+#### 1. `POST /api/ai/recommend`
+Generates AI-ranked property matches based on user preferences.
+- **Payload**: `{ "budget": 3000000, "location": "San Francisco", "propertyType": "penthouse", "bedrooms": 3 }`
+- **Response**: List of matching property objects populated with `matchScore` (1-100) and `matchReason`.
+
+#### 2. `POST /api/ai/lease-audit`
+Audits lease agreement text using Gemini.
+- **Payload**: `{ "documentText": "Full text of lease agreement..." }`
+- **Response**: `{ "data": { "summary": "...", "keyTerms": {...}, "monthlyObligations": [...], "flaggedClauses": [...], "actionItems": [...] } }`
+
+#### 3. `POST /api/ai/chat`
+Conversational real estate AI assistant.
+- **Payload**: `{ "message": "Can I negotiate rent terms?", "history": [...], "propertyContext": { "title": "Skyline Penthouse", "price": 2450000 } }`
+- **Response**: `{ "data": { "reply": "AI response text..." } }`
+
