@@ -25,6 +25,7 @@ app.use("/api/properties", require("./src/routes/properties"));
 app.use("/api/inquiries", require("./src/routes/inquiries"));
 app.use("/api/favorites", require("./src/routes/favorites"));
 app.use("/api/ai", require("./src/routes/ai"));
+app.use("/api/admin", require("./src/routes/admin"));
 
 // 404 Handler
 app.use((req, res) => {

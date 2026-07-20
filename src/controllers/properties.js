@@ -17,7 +17,7 @@ const getProperties = async (req, res) => {
       limit = 12,
     } = req.query;
 
-    const query = { status: "Active" };
+    const query = { status: { $nin: ["Pending", "pending", "Rejected", "rejected"] } };
 
     // Search filter across title, location, city, shortDesc
     if (search.trim()) {
@@ -227,7 +227,7 @@ const createProperty = async (req, res) => {
       amenities: amenities || [],
       sellerId: String(userId),
       sellerName: userName,
-      status: "Active",
+      status: "Pending",
     });
 
     const savedProperty = await newProperty.save();
@@ -370,6 +370,100 @@ const deleteProperty = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/properties/admin/all
+ * Fetch ALL properties across all users for admin with search & status filtering
+ */
+const getAllPropertiesAdmin = async (req, res) => {
+  try {
+    const { search = "", status = "", type = "", sort = "newest" } = req.query;
+
+    const query = {};
+
+    if (search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      query.$or = [
+        { title: regex },
+        { location: regex },
+        { city: regex },
+        { sellerName: regex },
+      ];
+    }
+
+    if (status.trim() && status.toLowerCase() !== "all") {
+      const st = status.trim();
+      query.status = new RegExp(`^${st}$`, "i");
+    }
+
+    if (type.trim()) {
+      query.type = type.trim().toLowerCase();
+    }
+
+    let sortOptions = { createdAt: -1 };
+    if (sort === "price-asc") sortOptions = { price: 1 };
+    else if (sort === "price-desc") sortOptions = { price: -1 };
+    else if (sort === "oldest") sortOptions = { createdAt: 1 };
+
+    const properties = await Property.find(query).sort(sortOptions);
+
+    return res.status(200).json({
+      success: true,
+      data: properties,
+      total: properties.length,
+    });
+  } catch (error) {
+    console.error("Error fetching admin properties:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch all property listings",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * PATCH /api/properties/:id/status
+ * Update property approval status (Approved, Rejected, Pending, Active)
+ */
+const updatePropertyStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || typeof status !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Missing or invalid status parameter",
+      });
+    }
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: "Property listing not found",
+      });
+    }
+
+    property.status = status.charAt(0).toUpperCase() + status.slice(1);
+    const updated = await property.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Property status updated to '${property.status}'`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Error updating property status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update property status",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getProperties,
   getPropertyById,
@@ -377,4 +471,6 @@ module.exports = {
   createProperty,
   updateProperty,
   deleteProperty,
+  getAllPropertiesAdmin,
+  updatePropertyStatus,
 };

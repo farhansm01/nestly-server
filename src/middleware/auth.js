@@ -21,6 +21,14 @@ const requireAuth = async (req, res, next) => {
   if (checkInternalSecret(req)) {
     const internalUserId = req.headers["x-user-id"] || req.headers["user-id"] || "system_internal";
     const internalRole = req.headers["x-user-role"] || "admin";
+    const userStatus = req.headers["x-user-status"];
+    if (userStatus === "restricted") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Your account has been restricted by an administrator.",
+      });
+    }
+
     req.user = {
       id: internalUserId,
       _id: internalUserId,

@@ -25,7 +25,11 @@ const propertySchema = new mongoose.Schema(
     amenities: [{ type: String }],
     sellerId: { type: String, required: true },
     sellerName: { type: String, default: "Anonymous Seller" },
-    status: { type: String, default: "Active", enum: ["Active", "Pending", "Sold"] },
+    status: {
+      type: String,
+      default: "Pending",
+      enum: ["Active", "Pending", "Approved", "Rejected", "Sold", "active", "pending", "approved", "rejected", "sold"],
+    },
     views: { type: Number, default: 0 },
     rating: { type: Number, default: 5.0 },
   },
