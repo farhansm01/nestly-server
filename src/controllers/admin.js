@@ -60,7 +60,12 @@ const getAllUsers = async (req, res) => {
     }
 
     if (status.trim()) {
-      query.status = status.trim().toLowerCase();
+      const st = status.trim().toLowerCase();
+      if (st === "active") {
+        query.status = { $ne: "restricted" };
+      } else {
+        query.status = st;
+      }
     }
 
     const users = await User.find(query).sort({ createdAt: -1 }).toArray();
