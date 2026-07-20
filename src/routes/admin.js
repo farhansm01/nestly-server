@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const auth = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
 const {
   getAdminStats,
   getAllUsers,
@@ -10,7 +10,7 @@ const {
 } = require("../controllers/admin");
 
 // Apply auth middleware to all admin routes
-router.use(auth);
+router.use(requireAuth);
 
 // Admin platform metrics
 router.get("/stats", getAdminStats);
