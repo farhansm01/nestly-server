@@ -2,20 +2,50 @@ const { ai } = require("../../lib/gemini");
 const Property = require("../../models/Property");
 
 /**
- * Service for real estate conversational assistant using Gemini AI with intelligent DB lookup
+ * Service for real estate conversational assistant using Gemini AI with full platform & MongoDB catalog context
  */
 const getAIChatResponse = async ({ message, history = [], propertyContext = null }) => {
   if (!message || message.trim().length === 0) {
     throw new Error("Message text is empty.");
   }
 
-  // 1. Try Live Google Gemini API call first
+  // 1. Fetch live active properties from MongoDB to provide full website catalog context
+  let properties = [];
+  try {
+    properties = await Property.find({
+      status: { $nin: ["Pending", "pending", "Rejected", "rejected"] },
+    }).limit(30);
+  } catch (err) {
+    properties = [];
+  }
+
+  const catalogSummary = properties.length > 0
+    ? properties
+        .map(
+          (p) =>
+            `- "${p.title}" | Type: ${p.type || "Home"} | Price: ${
+              typeof p.price === "number" ? `$${p.price.toLocaleString()}` : p.price
+            } | Location: ${p.location} | Beds: ${p.beds || "N/A"}, Baths: ${p.baths || "N/A"} | ID: ${p._id}`
+        )
+        .join("\n")
+    : "No active listings currently available.";
+
+  // 2. Try Live Google Gemini API call with full Nestly website context
   if (ai) {
     try {
-      let systemInstruction = `You are Nestly AI, a friendly, expert real estate assistant guiding home buyers and property sellers. Be helpful, concise, and informative.`;
+      let systemInstruction = `You are Nestly AI, the official AI Real Estate Assistant for the Nestly platform (a premier real estate buying and listing web app).
+
+Nestly Platform Context:
+- Platform Purpose: Buying and selling verified residential properties (Apartments, Luxury Villas, Skyline Penthouses, Suburban Homes).
+- Listing Property Flow: Users can list properties for sale under '/dashboard/add'. New listings default to 'Pending' approval by Nestly Admin.
+- Exploration: Users can search and filter properties by location, type, price, and bedrooms under Explore ('/items').
+- AI Features: Nestly features Smart Recommendations, AI Document/Lease Auditing, and live AI Assistant chat.
+
+Live Nestly Platform Property Catalog (${properties.length} Active Listings in Database):
+${catalogSummary}`;
 
       if (propertyContext) {
-        systemInstruction += `\nCurrently, the user is viewing property listing:
+        systemInstruction += `\n\nCurrently, the user is actively viewing this specific property listing:
 Title: ${propertyContext.title || "N/A"}
 Price: ${propertyContext.formattedPrice || propertyContext.price || "N/A"}
 Location: ${propertyContext.location || "N/A"}
@@ -23,6 +53,11 @@ Type: ${propertyContext.type || "N/A"}
 Bedrooms: ${propertyContext.beds || "N/A"}, Bathrooms: ${propertyContext.baths || "N/A"}
 Description: ${propertyContext.shortDesc || propertyContext.fullDesc || "N/A"}`;
       }
+
+      systemInstruction += `\n\nInstructions:
+- Respond naturally, warmly, and expertly as Nestly's official AI guide.
+- Refer to actual Nestly property listings from the live catalog above when users ask about available homes, specific cities, property types, or price ranges.
+- Use clear GitHub-style Markdown formatting (bullet points, bold text).`;
 
       const contents = [
         { role: "user", parts: [{ text: systemInstruction }] },
@@ -42,22 +77,12 @@ Description: ${propertyContext.shortDesc || propertyContext.fullDesc || "N/A"}`;
         return response.text;
       }
     } catch (error) {
-      console.warn("Gemini AI API notice (using live DB dynamic NLP response):", error.message);
+      console.warn("Gemini AI API notice (using dynamic website NLP engine):", error.message);
     }
   }
 
-  // 2. Intelligent Dynamic Natural Language Query Engine querying MongoDB
+  // 3. Dynamic Website NLP Fallback Engine
   const q = message.toLowerCase();
-
-  // Fetch live properties from DB for context
-  let properties = [];
-  try {
-    properties = await Property.find({
-      status: { $nin: ["Pending", "pending", "Rejected", "rejected"] },
-    }).limit(20);
-  } catch (err) {
-    properties = [];
-  }
 
   // Location Queries (San Francisco, Malibu, Beverly Hills, Palo Alto, LA, etc.)
   const matchedLocs = ["san francisco", "malibu", "beverly hills", "palo alto", "los angeles", "california", "miami", "bay"].filter(
@@ -72,79 +97,43 @@ Description: ${propertyContext.shortDesc || propertyContext.fullDesc || "N/A"}`;
 
     if (matchingProps.length > 0) {
       const propList = matchingProps
-        .slice(0, 3)
+        .slice(0, 4)
         .map(
           (p) =>
-            `• ${p.title} (${p.type || "Home"}) for ${
+            `• **${p.title}** (${p.type || "Home"}) — ${
               typeof p.price === "number" ? `$${p.price.toLocaleString()}` : p.price
-            }`
+            } in *${p.location}*`
         )
         .join("\n");
-      return `We currently have ${matchingProps.length} active property listing(s) in ${targetLoc.toUpperCase()}:\n\n${propList}\n\nYou can explore full details by filtering by location on the Explore Properties page!`;
+      return `Nestly currently features **${matchingProps.length} active property listing(s)** in **${targetLoc.toUpperCase()}**:\n\n${propList}\n\nYou can explore full photos and floorplans on the **Explore Properties** page!`;
     }
-    return `In ${targetLoc.toUpperCase()}, real estate property values are strong with high buyer demand. While no new listings were posted in the last 24 hours for ${targetLoc}, you can set up an alert on Nestly to be notified when new properties go live!`;
+    return `In **${targetLoc.toUpperCase()}**, real estate demand is high. While no new listings were posted today in ${targetLoc}, you can browse nearby California properties under Explore!`;
   }
 
   // Property Type Queries (Penthouse, Villa, Apartment, Suburban)
   if (q.includes("penthouse")) {
     const penthouses = properties.filter((p) => p.type === "penthouse");
     if (penthouses.length > 0) {
-      const names = penthouses.map((p) => p.title).join(", ");
-      return `Nestly currently features top skyline penthouses including: ${names}. They feature panoramic views, floor-to-ceiling glass, and private elevator access!`;
+      const names = penthouses.map((p) => `• **${p.title}** ($${p.price?.toLocaleString()})`).join("\n");
+      return `Nestly currently features top skyline penthouses:\n\n${names}\n\nThey feature floor-to-ceiling glass walls, private elevators, and high-floor views.`;
     }
-    return `Skyline penthouses on Nestly feature private rooftop decks, floor-to-ceiling glass, and high-floor panoramic views. Browse them using the 'Penthouse' filter on Explore Properties.`;
   }
 
   if (q.includes("villa") || q.includes("estate")) {
     const villas = properties.filter((p) => p.type === "villa");
     if (villas.length > 0) {
-      const names = villas.map((p) => p.title).join(", ");
-      return `We have luxury private villas listed on Nestly including: ${names}. They include infinity pools, sprawling gardens, and gated security!`;
+      const names = villas.map((p) => `• **${p.title}** ($${p.price?.toLocaleString()})`).join("\n");
+      return `Nestly features luxury private villas:\n\n${names}\n\nThey feature infinity pools, gated grounds, and premium security.`;
     }
-    return `Luxury villas on Nestly offer private gated estates, swimming pools, and ocean or hillside vistas. You can view all available villas under the Explore page filter.`;
-  }
-
-  if (q.includes("apartment") || q.includes("flat") || q.includes("condo")) {
-    return `Modern urban apartments on Nestly are located in prime metropolitan centers with smart home automation, 24/7 security, and fitness centers.`;
-  }
-
-  // Budget / Pricing / Cheap / Affordable Queries
-  if (q.includes("cheap") || q.includes("under") || q.includes("budget") || q.includes("affordable") || q.includes("low")) {
-    const sortedByPrice = [...properties].sort((a, b) => (a.price || 0) - (b.price || 0));
-    if (sortedByPrice.length > 0) {
-      const lowest = sortedByPrice[0];
-      const lowestPrice = typeof lowest.price === "number" ? `$${lowest.price.toLocaleString()}` : lowest.price;
-      return `Our most accessible listing currently on Nestly is "${lowest.title}" located in ${lowest.location} priced at ${lowestPrice}. You can filter by price range on the Explore page!`;
-    }
-    return `You can use the 'Price Range' filter on the Explore page to browse properties under $1,000,000 or between $1M – $3M based on your budget preferences.`;
-  }
-
-  if (q.includes("price") || q.includes("cost") || q.includes("valuat") || q.includes("worth")) {
-    return `Platform real estate valuations on Nestly are calculated using location trends, square footage, amenities, and AI price predictions. Average property prices range from $950K for city apartments to $4.8M for oceanfront villas.`;
   }
 
   // Selling / Listing Queries
   if (q.includes("sell") || q.includes("list") || q.includes("post")) {
-    return `To sell or list a property on Nestly: Go to your Dashboard, click "Post New Property" or "Add Property", fill in your listing title, price, location, photos, and submit. An Admin will review and publish your listing live!`;
+    return `To list your home for sale on Nestly:\n1. Open your **User Dashboard**\n2. Click **"Post New Property"** (` + "`/dashboard/add`" + `)\n3. Enter property title, price, location, photos, and descriptions\n4. Submit for Admin approval!`;
   }
 
-  // Buying / Inquiries / Schedule / Agent Queries
-  if (q.includes("buy") || q.includes("tour") || q.includes("schedule") || q.includes("contact") || q.includes("inquir")) {
-    return `To buy or schedule a tour for a home: Click on any property listing, review the details, and click "Submit Inquiry / Schedule Tour" to connect directly with the seller or agent.`;
-  }
-
-  // Document / Contract Queries
-  if (q.includes("contract") || q.includes("doc") || q.includes("term") || q.includes("lease") || q.includes("legal")) {
-    return `Under the "Document Intelligence" tab on this AI Features page, you can paste contract text or upload PDF documents for an automated AI audit of key terms, obligations, and risk flags!`;
-  }
-
-  // Greeting Queries
-  if (q.includes("hi") || q.includes("hello") || q.includes("hey") || q.includes("who are you")) {
-    return `Hello! I am Nestly AI Real Estate Assistant. I can help you find luxury homes, analyze contract clauses, check property prices, or guide you through listing your property. What would you like to know today?`;
-  }
-
-  // Default dynamic contextual response
-  return `I reviewed your query about "${message}". Nestly currently lists ${properties.length} verified real estate properties across San Francisco, Malibu, Beverly Hills, and top metropolitan markets. Feel free to search listings on Explore or ask me about specific home types!`;
+  // Default response with website catalog overview
+  return `Hello! I am Nestly AI. Nestly currently has **${properties.length} active property listings** on the platform spanning luxury penthouses, private villas, and urban apartments across San Francisco, Malibu, and Beverly Hills. How can I help you find your dream home today?`;
 };
 
 module.exports = { getAIChatResponse };
