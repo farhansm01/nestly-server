@@ -5,6 +5,9 @@ const {
   getProperties,
   getPropertyById,
   getMyProperties,
+  createProperty,
+  updateProperty,
+  deleteProperty,
 } = require("../controllers/properties");
 
 // Public route: fetch all active listings (with filters, pagination, search)
@@ -15,5 +18,10 @@ router.get("/user/my", requireAuth, getMyProperties);
 
 // Public route: fetch single listing details by ID
 router.get("/:id", getPropertyById);
+
+// Protected mutation routes
+router.post("/", requireAuth, createProperty);
+router.put("/:id", requireAuth, updateProperty);
+router.delete("/:id", requireAuth, deleteProperty);
 
 module.exports = router;

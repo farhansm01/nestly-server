@@ -153,8 +153,211 @@ const getMyProperties = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/properties
+ * Create a new property listing
+ */
+const createProperty = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const userName = req.user?.name || "Seller";
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Seller identification missing",
+      });
+    }
+
+    const {
+      title,
+      type,
+      price,
+      location,
+      city,
+      shortDesc,
+      fullDesc,
+      beds,
+      baths,
+      sqft,
+      yearBuilt,
+      image,
+      gallery,
+      amenities,
+    } = req.body;
+
+    if (!title || !type || price === undefined || !location || !shortDesc || !image) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required property fields (title, type, price, location, shortDesc, image)",
+      });
+    }
+
+    const newProperty = new Property({
+      title,
+      type: String(type).toLowerCase(),
+      price: Number(price),
+      formattedPrice: `$${Number(price).toLocaleString("en-US")}`,
+      location,
+      city: city || location.split(",").pop().trim(),
+      shortDesc,
+      fullDesc: fullDesc || shortDesc,
+      beds: Number(beds) || 0,
+      baths: Number(baths) || 0,
+      sqft: sqft || "",
+      yearBuilt: yearBuilt || "",
+      image,
+      gallery: gallery || [image],
+      amenities: amenities || [],
+      sellerId: String(userId),
+      sellerName: userName,
+      status: "Active",
+    });
+
+    const savedProperty = await newProperty.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Property listing created successfully",
+      data: savedProperty,
+    });
+  } catch (error) {
+    console.error("Error creating property:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create property listing",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * PUT /api/properties/:id
+ * Update an existing property listing
+ */
+const updateProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || req.user?._id;
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: "Property listing not found",
+      });
+    }
+
+    // Owner or admin authorization check
+    const isOwner = String(property.sellerId) === String(userId);
+    const isAdmin = req.user?.role === "admin" || req.user?.isInternal === true;
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to update this listing",
+      });
+    }
+
+    // Update fields
+    const allowedFields = [
+      "title",
+      "type",
+      "price",
+      "location",
+      "city",
+      "shortDesc",
+      "fullDesc",
+      "beds",
+      "baths",
+      "sqft",
+      "yearBuilt",
+      "image",
+      "gallery",
+      "amenities",
+      "status",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        if (field === "type") {
+          property[field] = String(req.body[field]).toLowerCase();
+        } else if (field === "price") {
+          property.price = Number(req.body.price);
+          property.formattedPrice = `$${Number(req.body.price).toLocaleString("en-US")}`;
+        } else {
+          property[field] = req.body[field];
+        }
+      }
+    });
+
+    const updatedProperty = await property.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Property listing updated successfully",
+      data: updatedProperty,
+    });
+  } catch (error) {
+    console.error("Error updating property:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update property listing",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * DELETE /api/properties/:id
+ * Delete a property listing by ID
+ */
+const deleteProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || req.user?._id;
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: "Property listing not found",
+      });
+    }
+
+    const isOwner = String(property.sellerId) === String(userId);
+    const isAdmin = req.user?.role === "admin" || req.user?.isInternal === true;
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to delete this listing",
+      });
+    }
+
+    await Property.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting property:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete property listing",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getProperties,
   getPropertyById,
   getMyProperties,
+  createProperty,
+  updateProperty,
+  deleteProperty,
 };
