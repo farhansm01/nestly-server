@@ -1,20 +1,26 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const connectDB = require("./src/lib/db");
 
 const app = express();
 
-app.use(cors({
-  origin: process.env.CLIENT_URL,
-  credentials: true,
-}));
+// Connect Database
+connectDB();
+
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || process.env.ALLOWED_ORIGIN || "*",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
+// Health Check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
-// routes mount here as you build them, e.g.:
-// app.use("/api/properties", require("./src/routes/properties"));
-// app.use("/api/ai", require("./src/routes/ai"));
+// Routes
+app.use("/api/properties", require("./src/routes/properties"));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
