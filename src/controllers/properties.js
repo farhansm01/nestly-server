@@ -155,7 +155,7 @@ const getMyProperties = async (req, res) => {
 
 /**
  * POST /api/properties
- * Create a new property listing
+ * Create a new property listing with support for multiple images
  */
 const createProperty = async (req, res) => {
   try {
@@ -182,16 +182,31 @@ const createProperty = async (req, res) => {
       sqft,
       yearBuilt,
       image,
+      images,
       gallery,
       amenities,
     } = req.body;
 
-    if (!title || !type || price === undefined || !location || !shortDesc || !image) {
+    // Collect all image URLs from image, images, or gallery fields
+    let allImageUrls = [];
+    if (typeof image === "string" && image.trim()) allImageUrls.push(image.trim());
+    else if (Array.isArray(image)) allImageUrls.push(...image);
+
+    if (Array.isArray(images)) allImageUrls.push(...images);
+    if (Array.isArray(gallery)) allImageUrls.push(...gallery);
+
+    allImageUrls = Array.from(
+      new Set(allImageUrls.filter((url) => typeof url === "string" && url.trim().length > 0))
+    );
+
+    if (!title || !type || price === undefined || !location || !shortDesc || allImageUrls.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Missing required property fields (title, type, price, location, shortDesc, image)",
+        message: "Missing required property fields (title, type, price, location, shortDesc, image/images)",
       });
     }
+
+    const primaryImage = allImageUrls[0];
 
     const newProperty = new Property({
       title,
@@ -206,8 +221,9 @@ const createProperty = async (req, res) => {
       baths: Number(baths) || 0,
       sqft: sqft || "",
       yearBuilt: yearBuilt || "",
-      image,
-      gallery: gallery || [image],
+      image: primaryImage,
+      gallery: allImageUrls,
+      images: allImageUrls,
       amenities: amenities || [],
       sellerId: String(userId),
       sellerName: userName,
@@ -274,6 +290,7 @@ const updateProperty = async (req, res) => {
       "sqft",
       "yearBuilt",
       "image",
+      "images",
       "gallery",
       "amenities",
       "status",
