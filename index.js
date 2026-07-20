@@ -23,6 +23,7 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/properties", require("./src/routes/properties"));
 app.use("/api/inquiries", require("./src/routes/inquiries"));
 app.use("/api/favorites", require("./src/routes/favorites"));
+app.use("/api/ai", require("./src/routes/ai"));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
