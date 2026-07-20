@@ -9,6 +9,14 @@ const getAuth = () => {
     authInstance = betterAuth({
       database: mongodbAdapter(mongoose.connection.db),
       emailAndPassword: { enabled: true },
+      user: {
+        additionalFields: {
+          role: {
+            type: "string",
+            defaultValue: "buyer",
+          },
+        },
+      },
       socialProviders: {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID || "",

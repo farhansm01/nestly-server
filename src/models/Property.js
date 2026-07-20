@@ -35,8 +35,8 @@ const propertySchema = new mongoose.Schema(
 );
 
 // Format price & sync gallery/images before saving
-propertySchema.pre("save", function (next) {
-  if (!this.formattedPrice && this.price !== undefined) {
+propertySchema.pre("save", function () {
+  if (typeof this.price === "number" && !isNaN(this.price)) {
     this.formattedPrice = `$${this.price.toLocaleString("en-US")}`;
   }
 
@@ -57,8 +57,6 @@ propertySchema.pre("save", function (next) {
 
   this.gallery = allImages;
   this.images = allImages;
-
-  next();
 });
 
 module.exports = mongoose.models.Property || mongoose.model("Property", propertySchema);
