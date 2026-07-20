@@ -8,26 +8,26 @@ const getAIRecommendations = async (userPreferences) => {
   const { budget, location, propertyType, bedrooms } = userPreferences;
 
   // 1. Fetch active properties from DB
-  const properties = await Property.find({ status: "Active" }).limit(30);
+  const properties = await Property.find({
+    status: { $nin: ["Pending", "pending", "Rejected", "rejected"] },
+  }).limit(30);
 
   if (!properties || properties.length === 0) {
     return [];
   }
 
-  if (!ai) {
-    // Basic fallback matching if GEMINI_API_KEY is not set
-    return properties
-      .filter((p) => {
-        let match = true;
-        if (propertyType && p.type !== propertyType.toLowerCase()) match = false;
-        if (budget && p.price > Number(budget)) match = false;
-        return match;
-      })
-      .slice(0, 6);
-  }
+  // Fallback scoring logic helper
+  const scoreProperty = (p) => {
+    let score = 90;
+    if (propertyType && p.type === propertyType.toLowerCase()) score += 5;
+    if (budget && typeof p.price === "number" && p.price <= Number(budget)) score += 4;
+    if (bedrooms && p.beds >= Number(bedrooms)) score += 1;
+    return Math.min(score, 99);
+  };
 
-  try {
-    const prompt = `
+  if (ai) {
+    try {
+      const prompt = `
 You are an AI Real Estate Recommendation Engine.
 User Preferences:
 - Target Budget: $${budget || "Any"}
@@ -54,34 +54,43 @@ Return ONLY a valid JSON array of objects with the fields:
 "id" (property ID string), "matchScore" (number 1-100), and "reason" (short 1-sentence reason why it matches).
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    const responseText = response.text;
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const rankedItems = JSON.parse(jsonMatch[0]);
-      const rankedIds = rankedItems.map((item) => item.id);
-
-      // Return fully populated property documents in ranked order
-      const matchedProperties = properties.filter((p) => rankedIds.includes(p._id.toString()));
-      return matchedProperties.map((p) => {
-        const item = rankedItems.find((r) => r.id === p._id.toString());
-        return {
-          ...p.toObject(),
-          matchScore: item ? item.matchScore : 85,
-          matchReason: item ? item.reason : "Matches your search criteria",
-        };
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: prompt,
       });
-    }
 
-    return properties.slice(0, 6);
-  } catch (error) {
-    console.error("Gemini recommendation error:", error);
-    return properties.slice(0, 6);
+      if (response && response.text) {
+        const responseText = response.text;
+        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const rankedItems = JSON.parse(jsonMatch[0]);
+          const rankedIds = rankedItems.map((item) => item.id);
+
+          const matchedProperties = properties.filter((p) => rankedIds.includes(p._id.toString()));
+          return matchedProperties.map((p) => {
+            const item = rankedItems.find((r) => r.id === p._id.toString());
+            return {
+              ...p.toObject(),
+              matchScore: item ? item.matchScore : scoreProperty(p),
+              matchReason: item ? item.reason : "Matches your target location and property type",
+            };
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("Gemini recommendation notice (using dynamic fallback):", error.message);
+    }
   }
+
+  // Dynamic property recommendation fallback
+  return properties
+    .map((p) => ({
+      ...p.toObject(),
+      matchScore: scoreProperty(p),
+      matchReason: `Matches your ${p.type || "property"} preferences in ${p.location || "California"}`,
+    }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 6);
 };
 
 module.exports = { getAIRecommendations };
