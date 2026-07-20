@@ -39,7 +39,7 @@ Return ONLY a valid JSON object matching this exact structure:
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-flash-latest",
         contents: prompt,
       });
 
