@@ -38,6 +38,34 @@ const updatePropertyRatingStats = async (propertyId) => {
 };
 
 /**
+ * GET /api/reviews/recent
+ * Fetch recent verified reviews across all properties for homepage testimonials
+ */
+const getRecentReviews = async (req, res) => {
+  try {
+    const { limit = 6 } = req.query;
+    const limitNum = Math.max(1, parseInt(limit, 10) || 6);
+
+    const reviews = await Review.find()
+      .populate("propertyId", "title location image type")
+      .sort({ createdAt: -1 })
+      .limit(limitNum);
+
+    return res.status(200).json({
+      success: true,
+      data: reviews,
+    });
+  } catch (error) {
+    console.error("Error fetching recent reviews:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch recent reviews",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * GET /api/reviews/property/:propertyId
  * Get all reviews and aggregate summary for a property
  */
@@ -250,6 +278,7 @@ const deleteReview = async (req, res) => {
 
 module.exports = {
   getPropertyReviews,
+  getRecentReviews,
   createOrUpdateReview,
   deleteReview,
 };
