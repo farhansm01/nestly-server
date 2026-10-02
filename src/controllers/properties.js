@@ -1,3 +1,4 @@
+const { sendNewPropertyAlert } = require("../lib/mailer");
 const Property = require("../models/Property");
 
 /**
@@ -231,6 +232,7 @@ const createProperty = async (req, res) => {
     });
 
     const savedProperty = await newProperty.save();
+    sendNewPropertyAlert(savedProperty).catch((err) => console.error('Mailer Error:', err));
 
     return res.status(201).json({
       success: true,
