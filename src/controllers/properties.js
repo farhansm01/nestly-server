@@ -448,8 +448,12 @@ const updatePropertyStatus = async (req, res) => {
       });
     }
 
-    property.status = status.charAt(0).toUpperCase() + status.slice(1);
+    const newStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    property.status = newStatus;
     const updated = await property.save();
+    if (newStatus.toLowerCase() === "approved" || newStatus.toLowerCase() === "active") {
+      sendNewPropertyAlert(updated).catch((err) => console.error("Mailer Error on Approval:", err));
+    }
 
     return res.status(200).json({
       success: true,
