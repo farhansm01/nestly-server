@@ -42,7 +42,7 @@ async function sendNewPropertyAlert(property) {
       return { simulated: true, count: recipientEmails.length };
     }
 
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
+    const clientUrl = process.env.CLIENT_URL || process.env.ALLOWED_ORIGIN || "https://nestly-client-silk.vercel.app";
     const propertyLink = `${clientUrl}/items/${property._id || property.id}`;
 
     const htmlContent = `
