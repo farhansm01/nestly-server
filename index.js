@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./src/lib/db");
@@ -24,6 +24,7 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/properties", require("./src/routes/properties"));
 app.use("/api/inquiries", require("./src/routes/inquiries"));
 app.use("/api/favorites", require("./src/routes/favorites"));
+app.use("/api/reviews", require("./src/routes/reviews"));
 app.use("/api/ai", require("./src/routes/ai"));
 app.use("/api/admin", require("./src/routes/admin"));
 

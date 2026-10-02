@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 
 const propertySchema = new mongoose.Schema(
   {
@@ -31,7 +31,9 @@ const propertySchema = new mongoose.Schema(
       enum: ["Active", "Pending", "Approved", "Rejected", "Sold", "active", "pending", "approved", "rejected", "sold"],
     },
     views: { type: Number, default: 0 },
-    rating: { type: Number, default: 5.0 },
+    rating: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,
