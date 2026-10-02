@@ -232,7 +232,9 @@ const createProperty = async (req, res) => {
     });
 
     const savedProperty = await newProperty.save();
-    sendNewPropertyAlert(savedProperty).catch((err) => console.error('Mailer Error:', err));
+    if (savedProperty.status && (savedProperty.status.toLowerCase() === "approved" || savedProperty.status.toLowerCase() === "active")) {
+      sendNewPropertyAlert(savedProperty).catch((err) => console.error('Mailer Error:', err));
+    }
 
     return res.status(201).json({
       success: true,
@@ -312,6 +314,9 @@ const updateProperty = async (req, res) => {
     });
 
     const updatedProperty = await property.save();
+    if (updatedProperty.status && (updatedProperty.status.toLowerCase() === "approved" || updatedProperty.status.toLowerCase() === "active")) {
+      sendNewPropertyAlert(updatedProperty).catch((err) => console.error('Mailer Error on Update:', err));
+    }
 
     return res.status(200).json({
       success: true,
