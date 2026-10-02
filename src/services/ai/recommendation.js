@@ -1,4 +1,4 @@
-const { ai } = require("../../lib/gemini");
+﻿const { ai } = require("../../lib/gemini");
 const Property = require("../../models/Property");
 
 /**
@@ -7,9 +7,9 @@ const Property = require("../../models/Property");
 const getAIRecommendations = async (userPreferences) => {
   const { budget, location, propertyType, bedrooms, lifestyle = [] } = userPreferences;
 
-  // 1. Fetch active properties from DB
+  // 1. Fetch available active properties from DB (excluding Pending, Rejected, and Sold)
   const properties = await Property.find({
-    status: { $nin: ["Pending", "pending", "Rejected", "rejected"] },
+    status: { $nin: ["Pending", "pending", "Rejected", "rejected", "Sold", "sold"] },
   }).limit(30);
 
   if (!properties || properties.length === 0) {
