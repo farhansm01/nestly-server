@@ -9,9 +9,23 @@ const app = express();
 // Connect Database
 connectDB();
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://nestly-client-silk.vercel.app",
+  process.env.CLIENT_URL,
+  process.env.ALLOWED_ORIGIN,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || process.env.ALLOWED_ORIGIN || "*",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
   })
 );
